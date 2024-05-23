@@ -7,7 +7,7 @@ import os
 
 if __name__ == '__main__':
 
-    platform = 'rk3566'
+    platform = 'rk3588'
     exp = 'yolox'
     Width = 640
     Height = 640
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     MODEL_PATH = './onnx_models/yolox_s.onnx'
     NEED_BUILD_MODEL = True
     # NEED_BUILD_MODEL = False
-    im_file = './dog_bike_car_640x640.jpg'
+    im_file = './bus.jpg'
 
     # Create RKNN object
     rknn = RKNN()
