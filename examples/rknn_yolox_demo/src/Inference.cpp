@@ -57,9 +57,15 @@ static unsigned char *load_model(const char *filename, int *model_size)
   return data;
 }
 
+RKNN::RKNN()
+{
+
+}
+
 RKNN::~RKNN()
 {
-    rknn_destroy(_ctx);
+    if (_ctx != 0)
+      rknn_destroy(_ctx);
 
     if (_model_data != nullptr)
         delete[] _model_data;

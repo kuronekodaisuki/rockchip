@@ -45,11 +45,8 @@ include_directories(${RGA_PATH}/include)
 # mpp
 set(MPP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/mpp)
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${LIB_ARCH}/librockchip_mpp.so)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
-  set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_ANDROID_ARCH_ABI}/libmpp.so)
-endif()
+set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${LIB_ARCH}/librockchip_mpp.so)
+
 
 include_directories(${MPP_PATH}/include)
 
@@ -72,6 +69,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(rknn_yolox_demo
   src/Inference.cpp
+  src/main.cpp
   #src/preprocess.cc
   #src/postprocess.cc
 )
