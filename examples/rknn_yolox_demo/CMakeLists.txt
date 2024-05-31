@@ -21,7 +21,9 @@ else()
   set(LIB_ARCH armhf)
 endif()
 
-include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}
+  ../../rknn_api/include
+)
 
 # rknn api
 if(TARGET_SOC STREQUAL "rk356x")
@@ -100,9 +102,9 @@ set(CMAKE_INSTALL_RPATH "lib")
 include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(rknn_yolox_demo
-  src/main.cc
-  src/preprocess.cc
-  src/postprocess.cc
+  src/Inference.cpp
+  #src/preprocess.cc
+  #src/postprocess.cc
 )
 
 target_link_libraries(rknn_yolox_demo
@@ -110,23 +112,6 @@ target_link_libraries(rknn_yolox_demo
   ${RGA_LIB}
   ${OpenCV_LIBS}
 )
-
-if(MPP_LIBS)
-  add_executable(rknn_yolox_video_demo
-    src/main_video.cc
-    src/postprocess.cc
-    utils/mpp_decoder.cpp
-    utils/mpp_encoder.cpp
-    utils/drawing.cpp
-  )
-  target_link_libraries(rknn_yolox_video_demo
-    ${RKNN_RT_LIB}
-    ${RGA_LIB}
-    ${OpenCV_LIBS}
-    ${MPP_LIBS}
-    ${ZLMEDIAKIT_LIBS}
-  )
-endif()
 
 # install target and libraries
 set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/rknn_yolox_demo_${CMAKE_SYSTEM_NAME})
@@ -136,10 +121,7 @@ install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${RGA_LIB} DESTINATION lib)
 install(DIRECTORY model DESTINATION ./)
 
-if(MPP_LIBS)
-  install(TARGETS rknn_yolox_video_demo DESTINATION ./)
-  install(PROGRAMS ${MPP_LIBS} DESTINATION lib)
-endif()
+
 
 if(ZLMEDIAKIT_LIBS)
   install(PROGRAMS ${ZLMEDIAKIT_LIBS} DESTINATION lib)
