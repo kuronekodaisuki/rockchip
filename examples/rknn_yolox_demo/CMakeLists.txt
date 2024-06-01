@@ -69,6 +69,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 
 add_executable(rknn_yolox_demo
   src/Inference.cpp
+  src/YOLOX.cpp
   src/main.cpp
   #src/preprocess.cc
   #src/postprocess.cc

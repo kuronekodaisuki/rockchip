@@ -8,11 +8,8 @@ class RKNN
 {
 public:
     RKNN();
-    bool Initialize(const char* model_filepath, rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2);
 
-    //virtual bool Do();
-    //virtual bool PreProcess();
-    //virtual bool PostProcess();
+    virtual bool Initialize(const char* model_filepath, rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2);
 
     ~RKNN();
 protected:
