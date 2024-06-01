@@ -80,5 +80,5 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     int ret = rknn_run(_ctx, NULL);
     ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
 
-
+    return image;
 }
