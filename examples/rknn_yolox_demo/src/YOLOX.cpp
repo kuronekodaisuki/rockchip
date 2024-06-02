@@ -80,5 +80,14 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     int ret = rknn_run(_ctx, NULL);
     ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
 
+    PostProcess();
+    
     return image;
+}
+
+std::vector<OBJECT> YOLOX::PostProcess()
+{
+    std::vector<OBJECT> objects;
+
+    return objects;
 }
