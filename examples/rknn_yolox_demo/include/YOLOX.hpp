@@ -38,7 +38,7 @@ public:
 
     ~YOLOX();
 
-    bool Initialize(const char* model_filepath, float nms_threshold, float box_threshold, rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2);
+    bool Initialize(const char* model_filepath, float nms_threshold = NMS_THRESH, float box_threshold = BOX_THRESH, rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2);
 
     cv::Mat Infer(cv::Mat& image);
 
