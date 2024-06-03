@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <sys/time.h>
 #include <opencv2/imgproc.hpp>
 #include "YOLOX.hpp"
 
@@ -58,10 +59,14 @@ bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float bo
     return false;
 }
 
+static double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
+
 cv::Mat YOLOX::Infer(cv::Mat& image)
 {
     int img_width = image.cols;
     int img_height = image.rows;
+    timeval start, stop;
+
     if (_width == img_width && _height == img_height)
     {
         cv::cvtColor(image, _image, cv::COLOR_BGR2RGB);
@@ -75,11 +80,13 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
         cv::cvtColor(resized, _image, cv::COLOR_BGR2RGB);
     }
     _inputs[0].buf = _image.data;
-
+    gettimeofday(&start, NULL);
     // Model inference
     int ret = rknn_run(_ctx, NULL);
-    ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
-
+    //ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
+    gettimeofday(&stop, NULL);
+    printf("once run use %f ms\n", (__get_us(stop) - __get_us(start)) / 1000);
+    
     PostProcess();
     
     return image;
