@@ -49,6 +49,7 @@ bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float bo
         _inputs[0].pass_through = 0;
         _image.create(_height, _width, CV_8UC3);
 
+        printf("%d_outputs\n", _io_num.n_output);
         _outputs = new rknn_output[_io_num.n_output];
         for (int i = 0; i < _io_num.n_output; i++)
         {
@@ -83,7 +84,7 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     gettimeofday(&start, NULL);
     // Model inference
     int ret = rknn_run(_ctx, NULL);
-    //ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
+    ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
     gettimeofday(&stop, NULL);
     printf("once run use %f ms\n", (__get_us(stop) - __get_us(start)) / 1000);
     
