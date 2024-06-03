@@ -1,9 +1,26 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <sys/time.h>
 
 #include "Inference.hpp"
+
+static void dump_tensor_attr(rknn_tensor_attr *attr)
+{
+  std::string shape_str = attr->n_dims < 1 ? "" : std::to_string(attr->dims[0]);
+  for (int i = 1; i < attr->n_dims; ++i)
+  {
+    shape_str += ", " + std::to_string(attr->dims[i]);
+  }
+
+  printf("  index=%d, name=%s, n_dims=%d, dims=[%s], n_elems=%d, size=%d, w_stride = %d, size_with_stride=%d, fmt=%s, "
+         "type=%s, qnt_type=%s, "
+         "zp=%d, scale=%f\n",
+         attr->index, attr->name, attr->n_dims, shape_str.c_str(), attr->n_elems, attr->size, attr->w_stride,
+         attr->size_with_stride, get_format_string(attr->fmt), get_type_string(attr->type),
+         get_qnt_type_string(attr->qnt_type), attr->zp, attr->scale);
+}
 
 static unsigned char *load_data(FILE *fp, size_t ofst, size_t sz)
 {
@@ -104,6 +121,7 @@ bool RKNN::Initialize(const char* model_filepath, rknn_core_mask core_mask)
             printf("rknn_init error ret=%d\n", ret);
             return false;
         }
+        dump_tensor_attr(&(_input_attrs[i]));
      }
 
     // Set the output parameters
@@ -116,6 +134,7 @@ bool RKNN::Initialize(const char* model_filepath, rknn_core_mask core_mask)
         {
             return false;
         }
+        dump_tensor_attr(&(_output_attrs[i]));
     }
     return true;
 }
