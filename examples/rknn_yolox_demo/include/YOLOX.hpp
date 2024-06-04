@@ -51,6 +51,8 @@ protected:
     int _channel;
     int _width;
     int _height;
+    float _scale_x;
+    float _scale_y;
     rknn_input* _inputs;
     rknn_output* _outputs;
     cv::Mat _image;

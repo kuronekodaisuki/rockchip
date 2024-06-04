@@ -3,7 +3,7 @@
 #include <opencv2/imgproc.hpp>
 #include "YOLOX.hpp"
 
-YOLOX::YOLOX(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr)
+YOLOX::YOLOX(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
 {
 
 }
@@ -75,8 +75,8 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     }
     else
     {
-        float scale_w = (float)_width / img_width;
-        float scale_h = (float)_height / img_height;
+        _scale_x = (float)_width / img_width;
+        _scale_y = (float)_height / img_height;
         cv::Mat resized;
         cv::resize(image, resized, cv::Size(_width, _height));
         cv::cvtColor(resized, _image, cv::COLOR_BGR2RGB);
