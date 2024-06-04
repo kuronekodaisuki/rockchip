@@ -1,3 +1,7 @@
+//
+//
+//
+#ifndef YOLOX_INCLUDED
 #include <vector>
 #include <opencv2/core.hpp>
 #include "Inference.hpp"
@@ -57,3 +61,5 @@ protected:
     rknn_output* _outputs;
     cv::Mat _image;
 };
+#define YOLOX_INCLUDED
+#endif

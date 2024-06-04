@@ -3,6 +3,10 @@
 #include <opencv2/imgproc.hpp>
 #include "YOLOX.hpp"
 
+const char* coco_80_labels[] = {
+#include "../model/coco_80_labels.h"
+};
+
 YOLOX::YOLOX(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
 {
 
