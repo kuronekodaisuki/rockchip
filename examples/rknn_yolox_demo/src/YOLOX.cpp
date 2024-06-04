@@ -51,9 +51,9 @@ bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float bo
 
         printf("%d outputs\n", _io_num.n_output);
         _outputs = new rknn_output[_io_num.n_output];
-        rknn_output outputs[_io_num.n_output];
         for (int i = 0; i < _io_num.n_output; i++)
         {
+            memset(&_outputs[i], 0, sizeof(rknn_output));
             _outputs[i].want_float = 0;
         }
         return true;
@@ -83,18 +83,12 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     }
     _inputs[0].buf = _image.data;
 
-    rknn_output outputs[_io_num.n_output];
-    memset(outputs, 0, sizeof(outputs));
-    for (int i = 0; i < _io_num.n_output; i++)
-    {
-        outputs[i].want_float = 0;
-    }
     gettimeofday(&start, NULL);
     // Model inference
     int ret = rknn_run(_ctx, NULL);
-    printf("rknn_run returns %d\n", ret);
-    ret = rknn_outputs_get(_ctx, _io_num.n_output, outputs, NULL);
-    printf("rknn_outputs_get returns %d\n", ret);
+    //printf("rknn_run returns %d\n", ret);
+    ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
+    //printf("rknn_outputs_get returns %d\n", ret);
     gettimeofday(&stop, NULL);
     printf("once run use %f ms\n", (__get_us(stop) - __get_us(start)) / 1000);
     
