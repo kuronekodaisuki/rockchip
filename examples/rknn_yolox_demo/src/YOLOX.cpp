@@ -97,7 +97,7 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     printf("once run use %f ms\n", (__get_us(stop) - __get_us(start)) / 1000);
     
     PostProcess();
-    
+
     return image;
 }
 
@@ -114,12 +114,14 @@ void YOLOX::PostProcess()
     {
         out_scales.push_back(_output_attrs[i].scale);
         out_zps.push_back(_output_attrs[i].zp);
+        printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
     }
-/*
     GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
     GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
     GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
 
+    printf("proposals:%d\n", _proposals.size());
+    
     if (2 <= _proposals.size())
     {
         std::sort(_proposals.begin(), _proposals.end());
@@ -135,7 +137,10 @@ void YOLOX::PostProcess()
         _objects[i].box.width /= _scale_x;
         _objects[i].box.height /= _scale_x;
     }
-*/
+    for (int i = 0; i < _objects.size(); i++)
+    {
+        printf("id:%d x:%f y:%f w:%f h:%f\n", _objects[i].id, _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height);
+    }
 }
 
 inline static int32_t __clip(float val, float min, float max)
@@ -162,6 +167,7 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
     int grid_h = _height / stride;
     int grid_len = grid_h * grid_w;
     int8_t thres_i8 = qnt_f32_to_affine(_box_conf_threshold, zp, scale);
+    printf("w:%d h:%d thres:%d\n", grid_w, grid_h, thres_i8);
     for (int a = 0; a < 3; a++)
     {
         for (int i = 0; i < grid_h; i++)
@@ -169,6 +175,7 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
             for (int j = 0; j < grid_w; j++)
             {
                 int8_t box_confidence = input[(PROP_BOX_SIZE * a + 4) * grid_len + i * grid_w + j];
+                //printf("conf:%d\n", box_confidence);
                 if (thres_i8 <= box_confidence)
                 {
                     int offset = (PROP_BOX_SIZE * a) * grid_len + i * grid_w + j;
