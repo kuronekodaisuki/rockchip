@@ -102,38 +102,38 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
 }
 
 static int strides[] = {8, 16, 32};
-const int anchor0[6] = {10, 13, 16, 30, 33, 23};
-const int anchor1[6] = {30, 61, 62, 45, 59, 119};
-const int anchor2[6] = {116, 90, 156, 198, 373, 326};
+static int anchor0[6] = {10, 13, 16, 30, 33, 23};
+static int anchor1[6] = {30, 61, 62, 45, 59, 119};
+static int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
 void YOLOX::PostProcess()
 {
     std::vector<float> out_scales;
     std::vector<int32_t> out_zps;
-    for (int i = 0; i < io_num.n_output; ++i)
+    for (int i = 0; i < _io_num.n_output; ++i)
     {
-        out_scales.push_back(output_attrs[i].scale);
-        out_zps.push_back(output_attrs[i].zp);
+        out_scales.push_back(_output_attrs[i].scale);
+        out_zps.push_back(_output_attrs[i].zp);
     }
 
-    GenerateProposals(_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
-    GenerateProposals(_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
-    GenerateProposals(_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
+    GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
+    GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
+    GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
 
     if (2 <= _proposals.size())
     {
         std::sort(_proposals.begin(), _proposals.end());
     }
     std::vector<int> picked = nmsSortedBoxes();
-    _objects.resize(picked);
-    for (size_t i = 0; i < count; i++)
+    _objects.resize(picked.size());
+    for (size_t i = 0; i < picked.size(); i++)
     {
         _objects[i] = _proposals[picked[i]];
 
-        _objects[i].rect.x /= _scale_x;
-        _objects[i].rect.y /= _scale_y;
-        _objects[i].rect.width /= _scale_x;
-        _objects[i].rect.height /= _scale_x;
+        _objects[i].box.left /= _scale_x;
+        _objects[i].box.top /= _scale_y;
+        _objects[i].box.right /= _scale_x;
+        _objects[i].box.bottom /= _scale_x;
     }
 }
 
@@ -209,5 +209,4 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
 std::vector<int> YOLOX::nmsSortedBoxes()
 {
     std::vector<int> picked;
-
 }

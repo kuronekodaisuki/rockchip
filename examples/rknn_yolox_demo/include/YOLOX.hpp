@@ -21,20 +21,13 @@ typedef struct
     float bottom;
 } BOX_RECT;
 
-typedef struct
+typedef struct _OBJECT
 {
     int id;
     float prob;
     BOX_RECT box;
-    bool operator<(const OBJECT& right) const { return prob > right.prob; }
+    bool operator<(const _OBJECT& right) const { return prob > right.prob; }
 } OBJECT;
-
-typedef struct _detect_result_group_t
-{
-    int id;
-    int count;
-    OBJECT results[OBJ_NUMB_MAX_SIZE];
-} detect_result_group_t;
 
 class YOLOX: RKNN
 {
@@ -48,7 +41,7 @@ public:
     cv::Mat Infer(cv::Mat& image);
 
 private:
-    std::vector<OBJECT> PostProcess();
+    void PostProcess();
     void GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale);
     std::vector<int> nmsSortedBoxes();
 
