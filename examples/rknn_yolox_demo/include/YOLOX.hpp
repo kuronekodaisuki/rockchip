@@ -15,10 +15,11 @@
 
 typedef struct
 {
-    float left;
-    float top;
-    float right;
-    float bottom;
+    float x;
+    float y;
+    float width;
+    float height;
+    float Area() { return width * height; }
 } BOX_RECT;
 
 typedef struct _OBJECT

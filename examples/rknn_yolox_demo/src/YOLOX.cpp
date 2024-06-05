@@ -197,7 +197,7 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
                         OBJECT proposal;
                         proposal.id = maxClassId;
                         proposal.prob = (deqnt_affine_to_f32(maxClassProbs, zp, scale)) * (deqnt_affine_to_f32(box_confidence, zp, scale));
-                        proposal.box = {box_x, box_y, box_x + box_w, box_y + box_h};
+                        proposal.box = {box_x, box_y, box_w, box_h};
                         _proposals.push_back(proposal);
                     }
                 }
@@ -209,4 +209,31 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
 std::vector<int> YOLOX::nmsSortedBoxes()
 {
     std::vector<int> picked;
+    std::vector<float> areas(_proposals.size());
+    for (size_t i = 0; i < _proposals.size(): i++)
+    {
+        areas[i] = _proposals[i].box.Area();
+    }
+    
+    for (size_t i = 0; i < _proposals.size(); i++)
+    {
+        const OBJECT& a = _proposals[i];
+
+        int keep = 1;
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
+            const Object& b = objects[picked[j]];
+
+            // intersection over union
+            float inter_area = (a.rect & b.rect).area();
+            float union_area = areas[i] + areas[picked[j]] - inter_area;
+            // float IoU = inter_area / union_area
+            if (nms_threshold < inter_area / union_area)
+                keep = 0;
+        }
+
+        if (keep)
+            picked.push_back((int)i);
+    }
+    return picked;
 }
