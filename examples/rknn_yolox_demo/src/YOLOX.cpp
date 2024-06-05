@@ -101,9 +101,113 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
-std::vector<OBJECT> YOLOX::PostProcess()
-{
-    std::vector<OBJECT> objects;
+static int strides[] = {8, 16, 32};
+const int anchor0[6] = {10, 13, 16, 30, 33, 23};
+const int anchor1[6] = {30, 61, 62, 45, 59, 119};
+const int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
-    return objects;
+void YOLOX::PostProcess()
+{
+    std::vector<float> out_scales;
+    std::vector<int32_t> out_zps;
+    for (int i = 0; i < io_num.n_output; ++i)
+    {
+        out_scales.push_back(output_attrs[i].scale);
+        out_zps.push_back(output_attrs[i].zp);
+    }
+
+    GenerateProposals(_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
+    GenerateProposals(_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
+    GenerateProposals(_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
+
+    if (2 <= _proposals.size())
+    {
+        std::sort(_proposals.begin(), _proposals.end());
+    }
+    std::vector<int> picked = nmsSortedBoxes();
+    _objects.resize(picked);
+    for (size_t i = 0; i < count; i++)
+    {
+        _objects[i] = _proposals[picked[i]];
+
+        _objects[i].rect.x /= _scale_x;
+        _objects[i].rect.y /= _scale_y;
+        _objects[i].rect.width /= _scale_x;
+        _objects[i].rect.height /= _scale_x;
+    }
+}
+
+inline static int32_t __clip(float val, float min, float max)
+{
+    float f = val <= min ? min : (val >= max ? max : val);
+    return f;
+}
+
+static int8_t qnt_f32_to_affine(float f32, int32_t zp, float scale)
+{
+    float dst_val = (f32 / scale) + zp;
+    int8_t res = (int8_t)__clip(dst_val, -128, 127);
+    return res;
+}
+
+static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale) 
+{ 
+    return ((float)qnt - (float)zp) * scale; 
+}
+
+void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale)
+{
+    int grid_w = _width / stride;
+    int grid_h = _height / stride;
+    int grid_len = grid_h * grid_w;
+    int8_t thres_i8 = qnt_f32_to_affine(_box_conf_threshold, zp, scale);
+    for (int a = 0; a < 3; a++)
+    {
+        for (int i = 0; i < grid_h; i++)
+        {
+            for (int j = 0; j < grid_w; j++)
+            {
+                int8_t box_confidence = input[(PROP_BOX_SIZE * a + 4) * grid_len + i * grid_w + j];
+                if (thres_i8 <= box_confidence)
+                {
+                    int offset = (PROP_BOX_SIZE * a) * grid_len + i * grid_w + j;
+                    int8_t *in_ptr = input + offset;
+                    float box_x = (deqnt_affine_to_f32(*in_ptr, zp, scale)) * 2.0 - 0.5;
+                    float box_y = (deqnt_affine_to_f32(in_ptr[grid_len], zp, scale)) * 2.0 - 0.5;
+                    float box_w = (deqnt_affine_to_f32(in_ptr[2 * grid_len], zp, scale)) * 2.0;
+                    float box_h = (deqnt_affine_to_f32(in_ptr[3 * grid_len], zp, scale)) * 2.0;
+                    box_x = (box_x + j) * (float)stride;
+                    box_y = (box_y + i) * (float)stride;
+                    box_w = box_w * box_w * (float)anchor[a * 2];
+                    box_h = box_h * box_h * (float)anchor[a * 2 + 1];
+
+                    int8_t maxClassProbs = in_ptr[5 * grid_len];
+                    int maxClassId = 0;
+                    for (int k = 1; k < OBJ_CLASS_NUM; ++k)
+                    {
+                        int8_t prob = in_ptr[(5 + k) * grid_len];
+                        if (prob > maxClassProbs)
+                        {
+                            maxClassId = k;
+                            maxClassProbs = prob;
+                        }
+                    }
+                    if (thres_i8 <= maxClassProbs)
+                    {
+                        OBJECT proposal;
+                        proposal.id = maxClassId;
+                        proposal.prob = (deqnt_affine_to_f32(maxClassProbs, zp, scale)) * (deqnt_affine_to_f32(box_confidence, zp, scale));
+                        proposal.box = {box_x, box_y, box_x + box_w, box_y + box_h};
+                        _proposals.push_back(proposal);
+                    }
+                }
+            }
+        }
+    }
+}
+
+std::vector<int> YOLOX::nmsSortedBoxes()
+{
+    std::vector<int> picked;
+
 }

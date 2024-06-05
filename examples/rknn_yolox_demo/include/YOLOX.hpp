@@ -15,17 +15,18 @@
 
 typedef struct
 {
-    int left;
-    int right;
-    int top;
-    int bottom;
+    float left;
+    float top;
+    float right;
+    float bottom;
 } BOX_RECT;
 
 typedef struct
 {
-    char name[OBJ_NAME_MAX_SIZE];
+    int id;
+    float prob;
     BOX_RECT box;
-    float prop;
+    bool operator<(const OBJECT& right) const { return prob > right.prob; }
 } OBJECT;
 
 typedef struct _detect_result_group_t
@@ -48,6 +49,8 @@ public:
 
 private:
     std::vector<OBJECT> PostProcess();
+    void GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale);
+    std::vector<int> nmsSortedBoxes();
 
 protected:
     float _nms_threshold;
@@ -60,6 +63,8 @@ protected:
     rknn_input* _inputs;
     rknn_output* _outputs;
     cv::Mat _image;
+    std::vector<OBJECT> _proposals;
+    std::vector<OBJECT> _objects;
 };
 #define YOLOX_INCLUDED
 #endif
