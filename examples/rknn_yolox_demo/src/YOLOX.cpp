@@ -115,7 +115,7 @@ void YOLOX::PostProcess()
         out_scales.push_back(_output_attrs[i].scale);
         out_zps.push_back(_output_attrs[i].zp);
     }
-
+/*
     GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
     GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
     GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
@@ -130,11 +130,12 @@ void YOLOX::PostProcess()
     {
         _objects[i] = _proposals[picked[i]];
 
-        _objects[i].box.left /= _scale_x;
-        _objects[i].box.top /= _scale_y;
-        _objects[i].box.right /= _scale_x;
-        _objects[i].box.bottom /= _scale_x;
+        _objects[i].box.x /= _scale_x;
+        _objects[i].box.y /= _scale_y;
+        _objects[i].box.width /= _scale_x;
+        _objects[i].box.height /= _scale_x;
     }
+*/
 }
 
 inline static int32_t __clip(float val, float min, float max)
@@ -210,9 +211,9 @@ std::vector<int> YOLOX::nmsSortedBoxes()
 {
     std::vector<int> picked;
     std::vector<float> areas(_proposals.size());
-    for (size_t i = 0; i < _proposals.size(): i++)
+    for (size_t i = 0; i < _proposals.size(); i++)
     {
-        areas[i] = _proposals[i].box.Area();
+        areas[i] = _proposals[i].box.area();
     }
     
     for (size_t i = 0; i < _proposals.size(); i++)
@@ -222,13 +223,13 @@ std::vector<int> YOLOX::nmsSortedBoxes()
         int keep = 1;
         for (int j = 0; j < (int)picked.size(); j++)
         {
-            const Object& b = objects[picked[j]];
+            const OBJECT& b = _proposals[picked[j]];
 
             // intersection over union
-            float inter_area = (a.rect & b.rect).area();
+            float inter_area = (a.box & b.box).area();
             float union_area = areas[i] + areas[picked[j]] - inter_area;
             // float IoU = inter_area / union_area
-            if (nms_threshold < inter_area / union_area)
+            if (_nms_threshold < inter_area / union_area)
                 keep = 0;
         }
 

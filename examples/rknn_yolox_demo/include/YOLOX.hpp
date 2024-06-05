@@ -26,7 +26,7 @@ typedef struct _OBJECT
 {
     int id;
     float prob;
-    BOX_RECT box;
+    cv::Rect_<float> box;
     bool operator<(const _OBJECT& right) const { return prob > right.prob; }
 } OBJECT;
 
