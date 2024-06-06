@@ -61,7 +61,7 @@ public:
 private:
     void PostProcess();
     void GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale);
-    void generateProposals(Result* input, const std::vector<GridAndStride> grid);
+    void generateProposals(Result* input, const std::vector<GridAndStride> grid, int zp, float scale);
     std::vector<int> nmsSortedBoxes();
 
 protected:

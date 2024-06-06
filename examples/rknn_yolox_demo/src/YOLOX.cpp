@@ -109,9 +109,9 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     gettimeofday(&start, NULL);
     // Model inference
     int ret = rknn_run(_ctx, NULL);
-    //printf("rknn_run returns %d\n", ret);
+    
     ret = rknn_outputs_get(_ctx, _io_num.n_output, _outputs, NULL);
-    //printf("rknn_outputs_get returns %d\n", ret);
+
     gettimeofday(&stop, NULL);
     printf("once run use %f ms\n", (__get_us(stop) - __get_us(start)) / 1000);
     
@@ -129,19 +129,19 @@ void YOLOX::PostProcess()
     {
         out_scales.push_back(_output_attrs[i].scale);
         out_zps.push_back(_output_attrs[i].zp);
-        //printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
+        printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
     }
-    //generateProposals((Result*)_outputs[0].buf, _grids[0]);
-    //generateProposals((Result*)_outputs[1].buf, _grids[1]);
-    generateProposals((Result*)_outputs[2].buf, _grids[2]);
-
-    printf("proposals:%ld\n", _proposals.size());
-    
+    //generateProposals((Result*)_outputs[0].buf, _grids[0], out_zps[0], out_scales[0]);
+    //generateProposals((Result*)_outputs[1].buf, _grids[1], out_zps[1], out_scales[1]);
+    generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
+  
     if (2 <= _proposals.size())
     {
         std::sort(_proposals.begin(), _proposals.end());
     }
     std::vector<int> picked = nmsSortedBoxes();
+    printf("proposals:%ld picked:%ld\n", _proposals.size(), picked.size());
+    
     _objects.resize(picked.size());
     for (size_t i = 0; i < picked.size(); i++)
     {
@@ -154,7 +154,9 @@ void YOLOX::PostProcess()
     }
     for (int i = 0; i < _objects.size(); i++)
     {
-        printf("id:%d x:%f y:%f w:%f h:%f\n", _objects[i].id, _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height);
+        //printf("x:%f y:%f w:%f h:%f %f %s\n", 
+        //    _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height,
+        //    _objects[i].prob, coco_80_labels[_objects[i].id]);
     }
 }
 
@@ -176,29 +178,34 @@ static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale)
     return ((float)qnt - (float)zp) * scale; 
 }
 
-void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid)
+void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid, int zp, float scale)
 {
     for (size_t anchor = 0; anchor < grid.size(); anchor++)
     {
-        int stride = grid[anchor].stride;
-        float x = (results[anchor].x + grid[anchor].x) *  stride;
-        float y = (results[anchor].y + grid[anchor].y) * stride;
-        float w = (results[anchor].w) * stride;
-        float h = (results[anchor].h) * stride;
-        float box_objectness = results[anchor].box_prob;
+        float stride = grid[anchor].stride;
+        float x = deqnt_affine_to_f32(results[anchor].x, zp, scale);
+        float y = deqnt_affine_to_f32(results[anchor].y, zp, scale);
+        float w = deqnt_affine_to_f32(results[anchor].w, zp, scale);
+        float h = deqnt_affine_to_f32(results[anchor].h, zp, scale);
+        float box_objectness = deqnt_affine_to_f32(results[anchor].box_prob, zp, scale);
+
         OBJECT object = {{x, y, w, h}};
 
+        // Choose class
+        int max_class_id = 0;
+        int8_t max_class_prob = results[anchor].class_score[0]; 
         for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
         {
-            float class_score = results[anchor].class_score[class_id];
-            float box_prob = box_objectness * class_score;
-            if (_box_conf_threshold < box_prob)
+            int8_t prob = results[anchor].class_score[class_id];
+            if (max_class_prob < prob)
             {
-                object.id = class_id;
-                object.prob = box_prob;
-                _proposals.push_back(object);
+                max_class_id = class_id;
+                max_class_prob = prob;
             }
         }
+        object.id = max_class_id;
+        object.prob = deqnt_affine_to_f32(max_class_prob, zp, scale) * box_objectness;
+        _proposals.push_back(object);
     }
 }
 
