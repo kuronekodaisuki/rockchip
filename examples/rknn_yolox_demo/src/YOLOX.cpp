@@ -7,6 +7,8 @@ const char* coco_80_labels[] = {
 #include "../model/coco_80_labels.h"
 };
 
+static int strides[] = {8, 16, 32};
+
 YOLOX::YOLOX(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
 {
 
@@ -60,6 +62,23 @@ bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float bo
             memset(&_outputs[i], 0, sizeof(rknn_output));
             _outputs[i].want_float = 0;
         }
+        printf("Generate Grids and Strides %d x %d\n", _width, _height);
+        // generate Grids and Strides
+        for (int i = 0; i < 3; i++)
+        {
+            int y_grids = _height / strides[i];
+            int x_grids = _width / strides[i];
+            for (int y = 0; y < y_grids; y++)
+            {
+                GridAndStride grid = {strides[i], 0, y};
+                for (int x = 0; x < x_grids; x++)
+                {
+                    grid.x = x;
+                    _grids[i].push_back(grid);
+                }
+            }
+            printf("grid:%ld\n", _grids[i].size());
+        }        
         return true;
     }
     return false;
@@ -101,10 +120,6 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
-static int strides[] = {8, 16, 32};
-static int anchor0[6] = {10, 13, 16, 30, 33, 23};
-static int anchor1[6] = {30, 61, 62, 45, 59, 119};
-static int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
 void YOLOX::PostProcess()
 {
@@ -114,13 +129,13 @@ void YOLOX::PostProcess()
     {
         out_scales.push_back(_output_attrs[i].scale);
         out_zps.push_back(_output_attrs[i].zp);
-        printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
+        //printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
     }
-    GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], out_zps[0], out_scales[0]);
-    GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], out_zps[1], out_scales[1]);    
-    GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], out_zps[2], out_scales[2]);   
+    //generateProposals((Result*)_outputs[0].buf, _grids[0]);
+    //generateProposals((Result*)_outputs[1].buf, _grids[1]);
+    generateProposals((Result*)_outputs[2].buf, _grids[2]);
 
-    printf("proposals:%d\n", _proposals.size());
+    printf("proposals:%ld\n", _proposals.size());
     
     if (2 <= _proposals.size())
     {
@@ -160,6 +175,68 @@ static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale)
 { 
     return ((float)qnt - (float)zp) * scale; 
 }
+
+void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid)
+{
+    for (size_t anchor = 0; anchor < grid.size(); anchor++)
+    {
+        int stride = grid[anchor].stride;
+        float x = (results[anchor].x + grid[anchor].x) *  stride;
+        float y = (results[anchor].y + grid[anchor].y) * stride;
+        float w = (results[anchor].w) * stride;
+        float h = (results[anchor].h) * stride;
+        float box_objectness = results[anchor].box_prob;
+        OBJECT object = {{x, y, w, h}};
+
+        for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
+        {
+            float class_score = results[anchor].class_score[class_id];
+            float box_prob = box_objectness * class_score;
+            if (_box_conf_threshold < box_prob)
+            {
+                object.id = class_id;
+                object.prob = box_prob;
+                _proposals.push_back(object);
+            }
+        }
+    }
+}
+
+std::vector<int> YOLOX::nmsSortedBoxes()
+{
+    std::vector<int> picked;
+    std::vector<float> areas(_proposals.size());
+    for (size_t i = 0; i < _proposals.size(); i++)
+    {
+        areas[i] = _proposals[i].box.area();
+    }
+    
+    for (size_t i = 0; i < _proposals.size(); i++)
+    {
+        const OBJECT& a = _proposals[i];
+
+        int keep = 1;
+        for (int j = 0; j < (int)picked.size(); j++)
+        {
+            const OBJECT& b = _proposals[picked[j]];
+
+            // intersection over union
+            float inter_area = (a.box & b.box).area();
+            float union_area = areas[i] + areas[picked[j]] - inter_area;
+            // float IoU = inter_area / union_area
+            if (_nms_threshold < inter_area / union_area)
+                keep = 0;
+        }
+
+        if (keep)
+            picked.push_back((int)i);
+    }
+    return picked;
+}
+
+static int anchor0[6] = {10, 13, 16, 30, 33, 23};
+static int anchor1[6] = {30, 61, 62, 45, 59, 119};
+static int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
 void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale)
 {
@@ -212,36 +289,4 @@ void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, fl
             }
         }
     }
-}
-
-std::vector<int> YOLOX::nmsSortedBoxes()
-{
-    std::vector<int> picked;
-    std::vector<float> areas(_proposals.size());
-    for (size_t i = 0; i < _proposals.size(); i++)
-    {
-        areas[i] = _proposals[i].box.area();
-    }
-    
-    for (size_t i = 0; i < _proposals.size(); i++)
-    {
-        const OBJECT& a = _proposals[i];
-
-        int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
-        {
-            const OBJECT& b = _proposals[picked[j]];
-
-            // intersection over union
-            float inter_area = (a.box & b.box).area();
-            float union_area = areas[i] + areas[picked[j]] - inter_area;
-            // float IoU = inter_area / union_area
-            if (_nms_threshold < inter_area / union_area)
-                keep = 0;
-        }
-
-        if (keep)
-            picked.push_back((int)i);
-    }
-    return picked;
 }

@@ -24,11 +24,28 @@ typedef struct
 
 typedef struct _OBJECT
 {
-    int id;
-    float prob;
     cv::Rect_<float> box;
+    float prob;    
+    int id;
     bool operator<(const _OBJECT& right) const { return prob > right.prob; }
 } OBJECT;
+
+typedef struct
+{
+    int stride;
+    int x;
+    int y;
+} GridAndStride;
+
+typedef struct
+{
+    int8_t x;
+    int8_t y;
+    int8_t w;
+    int8_t h;
+    int8_t box_prob;
+    int8_t class_score[OBJ_CLASS_NUM]; 
+} Result;
 
 class YOLOX: RKNN
 {
@@ -44,6 +61,7 @@ public:
 private:
     void PostProcess();
     void GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale);
+    void generateProposals(Result* input, const std::vector<GridAndStride> grid);
     std::vector<int> nmsSortedBoxes();
 
 protected:
@@ -59,6 +77,7 @@ protected:
     cv::Mat _image;
     std::vector<OBJECT> _proposals;
     std::vector<OBJECT> _objects;
+    std::vector<GridAndStride> _grids[3];
 };
 #define YOLOX_INCLUDED
 #endif
