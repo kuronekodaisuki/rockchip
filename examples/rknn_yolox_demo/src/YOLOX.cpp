@@ -100,6 +100,7 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     {
         _scale_x = (float)_width / img_width;
         _scale_y = (float)_height / img_height;
+        printf("scale: %f %f\n", _scale_x, _scale_y);
         cv::Mat resized;
         cv::resize(image, resized, cv::Size(_width, _height));
         cv::cvtColor(resized, _image, cv::COLOR_BGR2RGB);
@@ -123,16 +124,8 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
 
 void YOLOX::PostProcess()
 {
-    std::vector<float> out_scales;
-    std::vector<int32_t> out_zps;
-    for (int i = 0; i < _io_num.n_output; ++i)
-    {
-        out_scales.push_back(_output_attrs[i].scale);
-        out_zps.push_back(_output_attrs[i].zp);
-        printf("name:%s zp: %d, scale:%f\n", _output_attrs[i].name, _output_attrs[i].zp, _output_attrs[i].scale);
-    }
-    //generateProposals((Result*)_outputs[0].buf, _grids[0], out_zps[0], out_scales[0]);
-    //generateProposals((Result*)_outputs[1].buf, _grids[1], out_zps[1], out_scales[1]);
+    generateProposals((Result*)_outputs[0].buf, _grids[0], _output_attrs[0].zp, _output_attrs[0].scale);
+    generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
     generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
   
     if (2 <= _proposals.size())
@@ -146,17 +139,12 @@ void YOLOX::PostProcess()
     for (size_t i = 0; i < picked.size(); i++)
     {
         _objects[i] = _proposals[picked[i]];
-
-        _objects[i].box.x /= _scale_x;
-        _objects[i].box.y /= _scale_y;
-        _objects[i].box.width /= _scale_x;
-        _objects[i].box.height /= _scale_x;
     }
     for (int i = 0; i < _objects.size(); i++)
     {
-        //printf("x:%f y:%f w:%f h:%f %f %s\n", 
-        //    _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height,
-        //    _objects[i].prob, coco_80_labels[_objects[i].id]);
+        printf("x:%f y:%f w:%f h:%f %f %s\n", 
+            _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height,
+            _objects[i].prob, coco_80_labels[_objects[i].id]);
     }
 }
 
@@ -183,10 +171,10 @@ void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> 
     for (size_t anchor = 0; anchor < grid.size(); anchor++)
     {
         float stride = grid[anchor].stride;
-        float x = deqnt_affine_to_f32(results[anchor].x, zp, scale);
-        float y = deqnt_affine_to_f32(results[anchor].y, zp, scale);
-        float w = deqnt_affine_to_f32(results[anchor].w, zp, scale);
-        float h = deqnt_affine_to_f32(results[anchor].h, zp, scale);
+        float x = deqnt_affine_to_f32(results[anchor].x, zp, scale) / _scale_x;
+        float y = deqnt_affine_to_f32(results[anchor].y, zp, scale) / _scale_y;
+        float w = deqnt_affine_to_f32(results[anchor].w, zp, scale) / _scale_x;
+        float h = deqnt_affine_to_f32(results[anchor].h, zp, scale) / _scale_y;
         float box_objectness = deqnt_affine_to_f32(results[anchor].box_prob, zp, scale);
 
         OBJECT object = {{x, y, w, h}};
@@ -223,7 +211,7 @@ std::vector<int> YOLOX::nmsSortedBoxes()
         const OBJECT& a = _proposals[i];
 
         int keep = 1;
-        for (int j = 0; j < (int)picked.size(); j++)
+        for (size_t j = 0; j < picked.size(); j++)
         {
             const OBJECT& b = _proposals[picked[j]];
 
@@ -231,7 +219,7 @@ std::vector<int> YOLOX::nmsSortedBoxes()
             float inter_area = (a.box & b.box).area();
             float union_area = areas[i] + areas[picked[j]] - inter_area;
             // float IoU = inter_area / union_area
-            if (_nms_threshold < inter_area / union_area)
+            if ((inter_area / union_area) < _nms_threshold)
                 keep = 0;
         }
 
