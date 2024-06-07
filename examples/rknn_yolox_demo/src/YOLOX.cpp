@@ -106,24 +106,34 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
-void YOLOX::PreProcess(cv::Mat& image)
+bool YOLOX::PreProcess(cv::Mat& image)
 {
     int img_width = image.cols;
     int img_height = image.rows;
 
     im_rect src_rect = {0};
     im_rect dst_rect = {0};
-    rga_buffer_t src = wrapbuffer_virtualaddr((void *)image.data, img_width, img_height, RK_FORMAT_RGB_888);
+    rga_buffer_t src = wrapbuffer_virtualaddr((void *)image.data, img_width, img_height, RK_FORMAT_BGR_888);
     rga_buffer_t dst = wrapbuffer_virtualaddr((void *)_image.data, _width, _height, RK_FORMAT_RGB_888);
     int ret = imcheck(src, dst, src_rect, dst_rect);
-    if (IM_STATUS_NOERROR != ret)
+    if (IM_STATUS_NOERROR == ret)
     {
-        fprintf(stderr, "rga check error! %s", imStrError((IM_STATUS)ret));
-        //return -1;
+        ret = imresize(src, dst);
+        if (IM_STATUS_SUCCESS == ret)
+        {
+            _inputs[0].buf = _image.data;
+            return true;
+        }
+        else
+        {
+            fprintf(stderr, "resize error %d %s\n", ret, imStrError((IM_STATUS)ret));
+        }
     }
-    IM_STATUS STATUS = imresize(src, dst);
-
-    _inputs[0].buf = _image.data;
+    else
+    {
+        fprintf(stderr, "rga check error! %s\n", imStrError((IM_STATUS)ret));
+    }
+    return false;
 }
 
 void YOLOX::PostProcess()
