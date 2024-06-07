@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <opencv2/imgproc.hpp>
+#include "im2d.h"
 #include "YOLOX.hpp"
 
 const char* coco_80_labels[] = {
@@ -88,24 +89,8 @@ static double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_use
 
 cv::Mat YOLOX::Infer(cv::Mat& image)
 {
-    int img_width = image.cols;
-    int img_height = image.rows;
     timeval start, stop;
-
-    if (_width == img_width && _height == img_height)
-    {
-        cv::cvtColor(image, _image, cv::COLOR_BGR2RGB);
-    }
-    else
-    {
-        _scale_x = (float)_width / img_width;
-        _scale_y = (float)_height / img_height;
-        printf("scale: %f %f\n", _scale_x, _scale_y);
-        cv::Mat resized;
-        cv::resize(image, resized, cv::Size(_width, _height));
-        cv::cvtColor(resized, _image, cv::COLOR_BGR2RGB);
-    }
-    _inputs[0].buf = _image.data;
+    PreProcess(image);
 
     gettimeofday(&start, NULL);
     // Model inference
@@ -121,6 +106,25 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
+void YOLOX::PreProcess(cv::Mat& image)
+{
+    int img_width = image.cols;
+    int img_height = image.rows;
+
+    im_rect src_rect = {0};
+    im_rect dst_rect = {0};
+    rga_buffer_t src = wrapbuffer_virtualaddr((void *)image.data, img_width, img_height, RK_FORMAT_RGB_888);
+    rga_buffer_t dst = wrapbuffer_virtualaddr((void *)_image.data, _width, _height, RK_FORMAT_RGB_888);
+    int ret = imcheck(src, dst, src_rect, dst_rect);
+    if (IM_STATUS_NOERROR != ret)
+    {
+        fprintf(stderr, "rga check error! %s", imStrError((IM_STATUS)ret));
+        //return -1;
+    }
+    IM_STATUS STATUS = imresize(src, dst);
+
+    _inputs[0].buf = _image.data;
+}
 
 void YOLOX::PostProcess()
 {
@@ -128,6 +132,7 @@ void YOLOX::PostProcess()
     generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
     generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
   
+    // Sort by probability
     if (2 <= _proposals.size())
     {
         std::sort(_proposals.begin(), _proposals.end());
