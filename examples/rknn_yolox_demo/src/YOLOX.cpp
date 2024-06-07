@@ -148,6 +148,11 @@ void YOLOX::PostProcess()
     }
 }
 
+inline static int clamp(float val, int min, int max) 
+{
+    return val > min ? (val < max ? val : max) : min; 
+}
+
 inline static int32_t __clip(float val, float min, float max)
 {
     float f = val <= min ? min : (val >= max ? max : val);
@@ -168,32 +173,35 @@ static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale)
 
 void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid, int zp, float scale)
 {
-    for (size_t anchor = 0; anchor < grid.size(); anchor++)
+    for (size_t i = 0; i < grid.size(); i++)
     {
-        float stride = grid[anchor].stride;
-        float x = deqnt_affine_to_f32(results[anchor].x, zp, scale) / _scale_x;
-        float y = deqnt_affine_to_f32(results[anchor].y, zp, scale) / _scale_y;
-        float w = deqnt_affine_to_f32(results[anchor].w, zp, scale) / _scale_x;
-        float h = deqnt_affine_to_f32(results[anchor].h, zp, scale) / _scale_y;
-        float box_objectness = deqnt_affine_to_f32(results[anchor].box_prob, zp, scale);
-
-        OBJECT object = {{x * stride, y * stride, w * stride, h * stride}};
-
-        // Choose class
-        int max_class_id = 0;
-        int8_t max_class_prob = results[anchor].class_score[0]; 
-        for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
+        //float stride = grid[i].stride;
+        float x = deqnt_affine_to_f32(results[i].x, zp, scale) / _scale_x;
+        float y = deqnt_affine_to_f32(results[i].y, zp, scale) / _scale_y;
+        float w = deqnt_affine_to_f32(results[i].w, zp, scale) / _scale_x;
+        float h = deqnt_affine_to_f32(results[i].h, zp, scale) / _scale_y;
+        float box_objectness = deqnt_affine_to_f32(results[i].box_prob, zp, scale);
+        
+        if (_box_conf_threshold < box_objectness)
         {
-            int8_t prob = results[anchor].class_score[class_id];
-            if (max_class_prob < prob)
+            OBJECT object = {{x, y, w, h}, box_objectness};
+
+            // Choose class
+            int max_class_id = 0;
+            int8_t max_class_prob = results[i].class_score[0]; 
+            for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
             {
-                max_class_id = class_id;
-                max_class_prob = prob;
+                int8_t prob = results[i].class_score[class_id];
+                if (max_class_prob < prob)
+                {
+                    max_class_id = class_id;
+                    max_class_prob = prob;
+                }
             }
+            object.id = max_class_id;
+            object.prob = deqnt_affine_to_f32(max_class_prob, zp, scale) * box_objectness;
+            _proposals.push_back(object);
         }
-        object.id = max_class_id;
-        object.prob = deqnt_affine_to_f32(max_class_prob, zp, scale) * box_objectness;
-        _proposals.push_back(object);
     }
 }
 
