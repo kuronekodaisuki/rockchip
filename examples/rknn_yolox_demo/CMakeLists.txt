@@ -31,7 +31,7 @@ include_directories(${RKNN_API_PATH}/include)
 include_directories(${CMAKE_SOURCE_DIR}/../3rdparty)
 
 # opencv
-set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../3rdparty/opencv/opencv-linux-aarch64/share/OpenCV)
+#set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../3rdparty/opencv/opencv-linux-aarch64/share/OpenCV)
 
 find_package(OpenCV REQUIRED)
 
@@ -65,7 +65,10 @@ endif()
 set(CMAKE_INSTALL_RPATH "lib")
 
 # rknn_yolox_demo
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(
+  ${CMAKE_SOURCE_DIR}/include
+  ${OpenCV_DIR}
+)
 
 add_executable(rknn_yolox_demo
   src/Inference.cpp

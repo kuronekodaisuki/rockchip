@@ -177,7 +177,7 @@ void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> 
         float h = deqnt_affine_to_f32(results[anchor].h, zp, scale) / _scale_y;
         float box_objectness = deqnt_affine_to_f32(results[anchor].box_prob, zp, scale);
 
-        OBJECT object = {{x, y, w, h}};
+        OBJECT object = {{x * stride, y * stride, w * stride, h * stride}};
 
         // Choose class
         int max_class_id = 0;
