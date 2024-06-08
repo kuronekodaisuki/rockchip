@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/highgui.hpp>
 #include "im2d.h"
 #include "YOLOv5.hpp"
+
+//#define USE_LETTERBOX
 
 const char* coco_80_labels[] = {
 #include "../model/coco_80_labels.h"
@@ -111,6 +114,21 @@ cv::Mat YOLOv5::Infer(cv::Mat& image)
 
 bool YOLOv5::PreProcess(cv::Mat& image)
 {
+#ifdef USE_LETTERBOX
+    float scale = image.rows > image.cols? (float)_height / image.rows: (float)_width / image.cols;
+
+    cv::Mat resized_image;
+    cv::resize(image, resized_image, cv::Size(), scale, scale);
+
+    int top = (_height - resized_image.rows) / 2;
+    int left = (_width - resized_image.cols) / 2;
+    printf("Scale:%f top:%d left:%d\n", scale, top, left);
+    // Cast resized image
+    cv::copyMakeBorder(resized_image, _image, top, _height - top, left, _width - left, cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
+    cv::imwrite("letterbox.png", _image);
+    _inputs[0].buf = _image.data;
+    return true;
+ #else
     int img_width = image.cols;
     int img_height = image.rows;
 
@@ -125,6 +143,7 @@ bool YOLOv5::PreProcess(cv::Mat& image)
         if (IM_STATUS_SUCCESS == ret)
         {
             _inputs[0].buf = _image.data;
+            cv::imwrite("Image.png", _image);
             return true;
         }
         else
@@ -137,6 +156,7 @@ bool YOLOv5::PreProcess(cv::Mat& image)
         fprintf(stderr, "rga check error! %s\n", imStrError((IM_STATUS)ret));
     }
     return false;
+#endif
 }
 
 void YOLOv5::PostProcess()
