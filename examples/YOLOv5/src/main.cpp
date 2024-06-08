@@ -10,7 +10,7 @@ int main(int argc, char* argv[])
 {
     if (argc < 3)
     {
-        printf("Usage: %s <rknn model> <input_image_path> <resize/letterbox> <output_image_path>\n", argv[0]);
+        printf("Usage: %s <rknn model> <input_image_path>\n", argv[0]);
         return -1;
     }
     YOLOv5 yolo;
