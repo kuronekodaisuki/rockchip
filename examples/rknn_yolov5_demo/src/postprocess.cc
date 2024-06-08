@@ -23,9 +23,12 @@
 
 #include <set>
 #include <vector>
-#define LABEL_NALE_TXT_PATH "./model/coco_80_labels_list.txt"
+//#define LABEL_NALE_TXT_PATH "./model/coco_80_labels_list.txt"
 
-static char *labels[OBJ_CLASS_NUM];
+static char *labels[OBJ_CLASS_NUM] =
+{
+#include "../model/coco_80_labels.h"
+};
 
 const int anchor0[6] = {10, 13, 16, 30, 33, 23};
 const int anchor1[6] = {30, 61, 62, 45, 59, 119};
@@ -261,6 +264,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
                  float nms_threshold, BOX_RECT pads, float scale_w, float scale_h, std::vector<int32_t> &qnt_zps,
                  std::vector<float> &qnt_scales, detect_result_group_t *group)
 {
+  /*
   static int init = -1;
   if (init == -1)
   {
@@ -273,6 +277,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
 
     init = 0;
   }
+  */
   memset(group, 0, sizeof(detect_result_group_t));
 
   std::vector<float> filterBoxes;
