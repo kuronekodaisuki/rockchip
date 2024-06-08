@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-project(rknn_yolox_demo)
+project(yolov5_demo)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -9,7 +9,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--allow-shlib-undefined")
 
 # install target and libraries
-set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/rknn_yolox_demo_${CMAKE_SYSTEM_NAME})
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/yolov5_demo_${CMAKE_SYSTEM_NAME})
 
 set(CMAKE_SKIP_INSTALL_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
@@ -64,29 +64,29 @@ endif()
 
 set(CMAKE_INSTALL_RPATH "lib")
 
-# rknn_yolox_demo
+# yolov5_demo
 include_directories(
   ${CMAKE_SOURCE_DIR}/include
   ${OpenCV_DIR}
 )
 
-add_executable(rknn_yolox_demo
+add_executable(yolov5_demo
   src/Inference.cpp
-  src/YOLOX.cpp
+  src/YOLOv5.cpp
   src/main.cpp
   #src/preprocess.cc
   #src/postprocess.cc
 )
 
-target_link_libraries(rknn_yolox_demo
+target_link_libraries(yolov5_demo
   ${RKNN_RT_LIB}
   ${RGA_LIB}
   ${OpenCV_LIBS}
 )
 
 # install target and libraries
-set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/rknn_yolox_demo_${CMAKE_SYSTEM_NAME})
-install(TARGETS rknn_yolox_demo DESTINATION ./)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/yolov5_demo_${CMAKE_SYSTEM_NAME})
+install(TARGETS yolov5_demo DESTINATION ./)
 
 install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${RGA_LIB} DESTINATION lib)
