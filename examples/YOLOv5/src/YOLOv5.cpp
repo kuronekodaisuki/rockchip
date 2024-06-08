@@ -122,10 +122,13 @@ bool YOLOv5::PreProcess(cv::Mat& image)
 
     int top = (_height - resized_image.rows) / 2;
     int left = (_width - resized_image.cols) / 2;
-    printf("Scale:%f top:%d left:%d\n", scale, top, left);
+    int bottom = _height - (top + resized_image.rows);
+    int right = _width - (left + resized_image.cols);
+    //printf("Scale:%f top:%d left:%d\n", scale, top, left);
+    
     // Cast resized image
-    cv::copyMakeBorder(resized_image, _image, top, _height - (top + resized_image.rows), left, _width - (left + resized_image.cols), cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
-    cv::imwrite("letterbox.png", _image);
+    cv::copyMakeBorder(resized_image, _image, top, bottom, left, right, cv::BORDER_CONSTANT);
+    //cv::imwrite("letterbox.png", _image);
     _inputs[0].buf = _image.data;
     return true;
  #else
@@ -164,7 +167,10 @@ void YOLOv5::PostProcess()
     GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], _output_attrs[0].zp, _output_attrs[0].scale);
     GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], _output_attrs[1].zp, _output_attrs[1].scale);
     GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], _output_attrs[2].zp, _output_attrs[2].scale);
-  
+    //generateProposals((Result*)_outputs[0].buf, _grids[0], _output_attrs[0].zp, _output_attrs[0].scale);
+    //generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
+    //generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
+
     // Sort by probability
     if (2 <= _proposals.size())
     {
@@ -213,7 +219,7 @@ void YOLOv5::generateProposals(Result* results, const std::vector<GridAndStride>
 {
     for (size_t i = 0; i < grid.size(); i++)
     {
-        //float stride = grid[i].stride;
+        float stride = grid[i].stride;
         float x = deqnt_affine_to_f32(results[i].x, zp, scale) / _scale_x;
         float y = deqnt_affine_to_f32(results[i].y, zp, scale) / _scale_y;
         float w = deqnt_affine_to_f32(results[i].w, zp, scale) / _scale_x;
@@ -222,7 +228,7 @@ void YOLOv5::generateProposals(Result* results, const std::vector<GridAndStride>
         
         if (_box_conf_threshold < box_objectness)
         {
-            OBJECT object = {{x, y, w, h}, box_objectness};
+            OBJECT object = {{x * stride, y * stride, w * stride, h * stride}, box_objectness};
 
             // Choose class
             int max_class_id = 0;
