@@ -25,7 +25,7 @@
 #include <vector>
 //#define LABEL_NALE_TXT_PATH "./model/coco_80_labels_list.txt"
 
-static char *labels[OBJ_CLASS_NUM] =
+static const char *labels[OBJ_CLASS_NUM] =
 {
 #include "../model/coco_80_labels.h"
 };
@@ -353,7 +353,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
     group->results[last_count].box.right = (int)(clamp(x2, 0, model_in_w) / scale_w);
     group->results[last_count].box.bottom = (int)(clamp(y2, 0, model_in_h) / scale_h);
     group->results[last_count].prop = obj_conf;
-    char *label = labels[id];
+    const char *label = labels[id];
     strncpy(group->results[last_count].name, label, OBJ_NAME_MAX_SIZE);
 
     // printf("result %2d: (%4d, %4d, %4d, %4d), %s\n", i, group->results[last_count].box.left,
@@ -368,6 +368,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
 
 void deinitPostProcess()
 {
+  /*
   for (int i = 0; i < OBJ_CLASS_NUM; i++)
   {
     if (labels[i] != nullptr)
@@ -376,4 +377,5 @@ void deinitPostProcess()
       labels[i] = nullptr;
     }
   }
+  */
 }
