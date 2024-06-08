@@ -15,11 +15,7 @@ set(CMAKE_SKIP_INSTALL_RPATH FALSE)
 set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-if(CMAKE_C_COMPILER MATCHES "aarch64")
-  set(LIB_ARCH aarch64)
-else()
-  set(LIB_ARCH armhf)
-endif()
+set(LIB_ARCH aarch64)
 
 include_directories(${CMAKE_SOURCE_DIR})
 
@@ -48,37 +44,22 @@ else()
   if(LIB_ARCH STREQUAL "armhf")
     set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../3rdparty/opencv/opencv-linux-armhf/share/OpenCV)
   else()
-    set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../3rdparty/opencv/opencv-linux-aarch64/share/OpenCV)
+    #set(OpenCV_DIR ${CMAKE_SOURCE_DIR}/../3rdparty/opencv/opencv-linux-aarch64/share/OpenCV)
   endif()
 endif()
 
 find_package(OpenCV REQUIRED)
 
 # rga
-if(TARGET_SOC STREQUAL "rk356x")
-  set(RGA_PATH ${CMAKE_SOURCE_DIR}/../3rdparty/rga/RK356X)
-elseif(TARGET_SOC STREQUAL "rk3588")
-  set(RGA_PATH ${CMAKE_SOURCE_DIR}/../3rdparty/rga/RK3588)
-else()
-  message(FATAL_ERROR "TARGET_SOC is not set, ref value: rk356x or rk3588")
-endif()
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Android")
-  set(RGA_LIB ${RGA_PATH}/lib/Android/${CMAKE_ANDROID_ARCH_ABI}/librga.so)
-else()
-  set(RGA_LIB ${RGA_PATH}/lib/Linux//${LIB_ARCH}/librga.so)
-endif()
+# rga
+set(RGA_PATH ${CMAKE_SOURCE_DIR}/../3rdparty/rga)
+set(RGA_LIB ${RGA_PATH}/libs/Linux//${LIB_ARCH}/librga.so)
 
 include_directories(${RGA_PATH}/include)
 
 # mpp
 set(MPP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../3rdparty/mpp)
-
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${LIB_ARCH}/librockchip_mpp.so)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Android")
-  set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${CMAKE_ANDROID_ARCH_ABI}/libmpp.so)
-endif()
+set(MPP_LIBS ${MPP_PATH}/${CMAKE_SYSTEM_NAME}/${LIB_ARCH}/librockchip_mpp.so)
 
 include_directories(${MPP_PATH}/include)
 
@@ -97,7 +78,10 @@ endif()
 set(CMAKE_INSTALL_RPATH "lib")
 
 # rknn_yolov5_demo
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(
+  ${CMAKE_SOURCE_DIR}/include
+  $(OpenCV_DIR)
+)
 
 add_executable(rknn_yolov5_demo
   src/main.cc
