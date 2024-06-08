@@ -2,7 +2,7 @@
 #include <sys/time.h>
 #include <opencv2/imgproc.hpp>
 #include "im2d.h"
-#include "YOLOX.hpp"
+#include "YOLOv5.hpp"
 
 const char* coco_80_labels[] = {
 #include "../model/coco_80_labels.h"
@@ -10,12 +10,12 @@ const char* coco_80_labels[] = {
 
 static int strides[] = {8, 16, 32};
 
-YOLOX::YOLOX(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
+YOLOv5::YOLOv5(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
 {
 
 }
 
-YOLOX::~YOLOX()
+YOLOv5::~YOLOv5()
 {
     if (_inputs != nullptr)
         delete[] _inputs;
@@ -25,7 +25,7 @@ YOLOX::~YOLOX()
     _outputs = nullptr;
 }
 
-bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float box_threshold, rknn_core_mask core_mask)
+bool YOLOv5::Initialize(const char* model_filepath, float nms_threshold, float box_threshold, rknn_core_mask core_mask)
 {
     if (RKNN::Initialize(model_filepath, core_mask))
     {
@@ -87,7 +87,7 @@ bool YOLOX::Initialize(const char* model_filepath, float nms_threshold, float bo
 
 static double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
 
-cv::Mat YOLOX::Infer(cv::Mat& image)
+cv::Mat YOLOv5::Infer(cv::Mat& image)
 {
     timeval start, stop;
     PreProcess(image);
@@ -106,7 +106,7 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
-bool YOLOX::PreProcess(cv::Mat& image)
+bool YOLOv5::PreProcess(cv::Mat& image)
 {
     int img_width = image.cols;
     int img_height = image.rows;
@@ -136,7 +136,7 @@ bool YOLOX::PreProcess(cv::Mat& image)
     return false;
 }
 
-void YOLOX::PostProcess()
+void YOLOv5::PostProcess()
 {
     generateProposals((Result*)_outputs[0].buf, _grids[0], _output_attrs[0].zp, _output_attrs[0].scale);
     generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
@@ -186,7 +186,7 @@ static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale)
     return ((float)qnt - (float)zp) * scale; 
 }
 
-void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid, int zp, float scale)
+void YOLOv5::generateProposals(Result* results, const std::vector<GridAndStride> grid, int zp, float scale)
 {
     for (size_t i = 0; i < grid.size(); i++)
     {
@@ -220,7 +220,7 @@ void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> 
     }
 }
 
-std::vector<int> YOLOX::nmsSortedBoxes()
+std::vector<int> YOLOv5::nmsSortedBoxes()
 {
     std::vector<int> picked;
     std::vector<float> areas(_proposals.size());
@@ -256,7 +256,7 @@ static int anchor0[6] = {10, 13, 16, 30, 33, 23};
 static int anchor1[6] = {30, 61, 62, 45, 59, 119};
 static int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
-void YOLOX::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale)
+void YOLOv5::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale)
 {
     int grid_w = _width / stride;
     int grid_h = _height / stride;

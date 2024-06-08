@@ -1,13 +1,11 @@
 //
 //
 //
-#ifndef YOLOX_INCLUDED
+#ifndef YOLOv5_INCLUDED
 #include <vector>
 #include <opencv2/core.hpp>
 #include "Inference.hpp"
 
-//#define OBJ_NAME_MAX_SIZE 16
-//#define OBJ_NUMB_MAX_SIZE 64
 #define OBJ_CLASS_NUM 80
 #define NMS_THRESH 0.45
 #define BOX_THRESH 0.25
@@ -38,12 +36,12 @@ typedef struct
     int8_t class_score[OBJ_CLASS_NUM]; 
 } Result;
 
-class YOLOX: RKNN
+class YOLOv5: RKNN
 {
 public:
-    YOLOX();
+    YOLOv5();
 
-    ~YOLOX();
+    ~YOLOv5();
 
     bool Initialize(const char* model_filepath, float nms_threshold = NMS_THRESH, float box_threshold = BOX_THRESH, rknn_core_mask core_mask = RKNN_NPU_CORE_0_1_2);
 
@@ -71,5 +69,5 @@ protected:
     std::vector<OBJECT> _objects;
     std::vector<GridAndStride> _grids[3];
 };
-#define YOLOX_INCLUDED
+#define YOLOv5_INCLUDED
 #endif
