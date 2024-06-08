@@ -5,7 +5,7 @@
 #include "im2d.h"
 #include "YOLOv5.hpp"
 
-//#define USE_LETTERBOX
+#define USE_LETTERBOX
 
 const char* coco_80_labels[] = {
 #include "../model/coco_80_labels.h"
@@ -124,12 +124,12 @@ bool YOLOv5::PreProcess(cv::Mat& image)
     int left = (_width - resized_image.cols) / 2;
     printf("Scale:%f top:%d left:%d\n", scale, top, left);
     // Cast resized image
-    cv::copyMakeBorder(resized_image, _image, top, _height - top, left, _width - left, cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
+    cv::copyMakeBorder(resized_image, _image, top, top, left, left, cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
     cv::imwrite("letterbox.png", _image);
     _inputs[0].buf = _image.data;
     return true;
  #else
-    int img_width = image.cols;
+    int img_width = image.cols; 
     int img_height = image.rows;
 
     im_rect src_rect = {0};
