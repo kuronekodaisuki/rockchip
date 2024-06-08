@@ -9,6 +9,9 @@ const char* coco_80_labels[] = {
 };
 
 static int strides[] = {8, 16, 32};
+static int anchor0[6] = {10, 13, 16, 30, 33, 23};
+static int anchor1[6] = {30, 61, 62, 45, 59, 119};
+static int anchor2[6] = {116, 90, 156, 198, 373, 326};
 
 YOLOv5::YOLOv5(): RKNN(), _channel(3), _inputs(nullptr), _outputs(nullptr), _scale_x(1), _scale_y(1)
 {
@@ -138,9 +141,9 @@ bool YOLOv5::PreProcess(cv::Mat& image)
 
 void YOLOv5::PostProcess()
 {
-    generateProposals((Result*)_outputs[0].buf, _grids[0], _output_attrs[0].zp, _output_attrs[0].scale);
-    generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
-    generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
+    GenerateProposals((int8_t*)_outputs[0].buf, anchor0, strides[0], _output_attrs[0].zp, _output_attrs[0].scale);
+    GenerateProposals((int8_t*)_outputs[1].buf, anchor1, strides[1], _output_attrs[1].zp, _output_attrs[1].scale);
+    GenerateProposals((int8_t*)_outputs[2].buf, anchor2, strides[2], _output_attrs[2].zp, _output_attrs[2].scale);
   
     // Sort by probability
     if (2 <= _proposals.size())
@@ -252,26 +255,24 @@ std::vector<int> YOLOv5::nmsSortedBoxes()
     return picked;
 }
 
-static int anchor0[6] = {10, 13, 16, 30, 33, 23};
-static int anchor1[6] = {30, 61, 62, 45, 59, 119};
-static int anchor2[6] = {116, 90, 156, 198, 373, 326};
+
 
 void YOLOv5::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale)
 {
     int grid_w = _width / stride;
     int grid_h = _height / stride;
     int grid_len = grid_h * grid_w;
-    int8_t thres_i8 = qnt_f32_to_affine(_box_conf_threshold, zp, scale);
-    printf("w:%d h:%d thres:%d\n", grid_w, grid_h, thres_i8);
+    //int8_t thres_i8 = qnt_f32_to_affine(_box_conf_threshold, zp, scale);
+    printf("w:%d h:%d thres:%f\n", grid_w, grid_h, _box_conf_threshold);
     for (int a = 0; a < 3; a++)
     {
         for (int i = 0; i < grid_h; i++)
         {
             for (int j = 0; j < grid_w; j++)
             {
-                int8_t box_confidence = input[(PROP_BOX_SIZE * a + 4) * grid_len + i * grid_w + j];
+                float box_confidence = deqnt_affine_to_f32(input[(PROP_BOX_SIZE * a + 4) * grid_len + i * grid_w + j], zp, scale);
                 //printf("conf:%d\n", box_confidence);
-                if (thres_i8 <= box_confidence)
+                if (_box_conf_threshold <= box_confidence)
                 {
                     int offset = (PROP_BOX_SIZE * a) * grid_len + i * grid_w + j;
                     int8_t *in_ptr = input + offset;
@@ -284,22 +285,22 @@ void YOLOv5::GenerateProposals(int8_t *input, int *anchor, int stride, int zp, f
                     box_w = box_w * box_w * (float)anchor[a * 2];
                     box_h = box_h * box_h * (float)anchor[a * 2 + 1];
 
-                    int8_t maxClassProbs = in_ptr[5 * grid_len];
+                    float maxClassProbs = deqnt_affine_to_f32(in_ptr[5 * grid_len], zp, scale);
                     int maxClassId = 0;
                     for (int k = 1; k < OBJ_CLASS_NUM; ++k)
                     {
-                        int8_t prob = in_ptr[(5 + k) * grid_len];
+                        float prob = deqnt_affine_to_f32(in_ptr[(5 + k) * grid_len], zp, scale);
                         if (prob > maxClassProbs)
                         {
                             maxClassId = k;
                             maxClassProbs = prob;
                         }
                     }
-                    if (thres_i8 <= maxClassProbs)
+                    //if (thres_i8 <= maxClassProbs)
                     {
                         OBJECT proposal;
                         proposal.id = maxClassId;
-                        proposal.prob = (deqnt_affine_to_f32(maxClassProbs, zp, scale)) * (deqnt_affine_to_f32(box_confidence, zp, scale));
+                        proposal.prob = maxClassProbs * box_confidence;
                         proposal.box = {box_x, box_y, box_w, box_h};
                         _proposals.push_back(proposal);
                     }
