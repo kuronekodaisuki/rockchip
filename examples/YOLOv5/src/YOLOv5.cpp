@@ -124,7 +124,7 @@ bool YOLOv5::PreProcess(cv::Mat& image)
     int left = (_width - resized_image.cols) / 2;
     printf("Scale:%f top:%d left:%d\n", scale, top, left);
     // Cast resized image
-    cv::copyMakeBorder(resized_image, _image, top, top, left, left, cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
+    cv::copyMakeBorder(resized_image, _image, top, _height - (top + resized_image.rows), left, _width - (left + resized_image.cols), cv::BORDER_CONSTANT, cv::Scalar(128, 0, 0));
     cv::imwrite("letterbox.png", _image);
     _inputs[0].buf = _image.data;
     return true;
