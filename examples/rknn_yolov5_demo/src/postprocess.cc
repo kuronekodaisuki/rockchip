@@ -145,14 +145,18 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
   int grid_len = grid_h * grid_w;
   int8_t thres_i8 = qnt_f32_to_affine(threshold, zp, scale);
   //printf("Grid_len:%d thres_i8:%d\n", grid_len, thres_i8);
-  for (int a = 0; a < 3; a++)
+
+  // For C
+  for (int c = 0; c < 3; c++)
   {
+    // for grid H
     for (int y = 0; y < grid_h; y++)
     {
+      // for W
       for (int x = 0; x < grid_w; x++)
       {
-        int offset = (PROP_BOX_SIZE * a) * grid_len + y * grid_w + x;
-        int8_t box_confidence = input[(PROP_BOX_SIZE * a + 4) * grid_len + y * grid_w + x];
+        int offset = (PROP_BOX_SIZE * c) * grid_len + y * grid_w + x;
+        int8_t box_confidence = input[(PROP_BOX_SIZE * c + 4) * grid_len + y * grid_w + x];
         if (thres_i8 <= box_confidence)
         {       
           //printf("box_confidence:%d offset:%d\n", box_confidence, offset);
@@ -162,8 +166,10 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
           float box_h = (deqnt_affine_to_f32(input[offset + 3 * grid_len], zp, scale)) * 2.0;
           box_x = (box_x + x) * (float)stride;
           box_y = (box_y + y) * (float)stride;
-          box_w = box_w * box_w * (float)anchor[a * 2];
-          box_h = box_h * box_h * (float)anchor[a * 2 + 1];
+          // ???
+          box_w = box_w * box_w * (float)anchor[c * 2];
+          box_h = box_h * box_h * (float)anchor[c * 2 + 1];
+          // Left, Top
           box_x -= (box_w / 2.0);
           box_y -= (box_h / 2.0);
 
@@ -243,6 +249,7 @@ int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h,
     indexArray.push_back(i);
   }
 
+  // Sort index by probability
   quick_sort_indice_inverse(objProbs, 0, validCount - 1, indexArray);
 
   std::set<int> class_set(std::begin(classId), std::end(classId));
