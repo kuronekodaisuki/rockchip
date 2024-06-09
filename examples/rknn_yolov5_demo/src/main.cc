@@ -246,9 +246,9 @@ int main(int argc, char **argv)
     return -1;
   }
   cv::Mat img;
-  cv::cvtColor(orig_img, img, cv::COLOR_BGR2RGB);
-  img_width = img.cols;
-  img_height = img.rows;
+  //cv::cvtColor(orig_img, img, cv::COLOR_BGR2RGB);
+  img_width = orig_img.cols;
+  img_height = orig_img.rows;
   printf("img width = %d, img height = %d\n", img_width, img_height);
 
   // 指定目标大小和预处理方式,默认使用LetterBox的预处理
@@ -257,8 +257,8 @@ int main(int argc, char **argv)
   cv::Size target_size(width, height);
   cv::Mat resized_img(target_size.height, target_size.width, CV_8UC3);
   // 计算缩放比例
-  float scale_w = (float)target_size.width / img.cols;
-  float scale_h = (float)target_size.height / img.rows;
+  float scale_w = (float)target_size.width / img_width;
+  float scale_h = (float)target_size.height / img_height;
 
   if (img_width != width || img_height != height)
   {
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
     if (option == "resize")
     {
       printf("resize image by rga\n");
-      ret = resize_rga(src, dst, img, resized_img, target_size);
+      ret = resize_rga(src, dst, orig_img, resized_img, target_size);
       if (ret != 0)
       {
         fprintf(stderr, "resize with rga error\n");
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
       float min_scale = std::min(scale_w, scale_h);
       scale_w = min_scale;
       scale_h = min_scale;
-      letterbox(img, resized_img, pads, min_scale, target_size);
+      letterbox(orig_img, resized_img, pads, min_scale, target_size);
       // 保存预处理图片
       cv::imwrite("letterbox_input.jpg", resized_img);
     }
