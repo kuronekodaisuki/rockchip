@@ -50,6 +50,7 @@ public:
     cv::Mat Infer(cv::Mat& image);
 
 private:
+    bool PreProcess(cv::Mat& image);
     void PostProcess();
     void GenerateProposals(int8_t *input, int *anchor, int stride, int zp, float scale);
     void generateProposals(Result* input, const std::vector<GridAndStride> grid, int zp, float scale);

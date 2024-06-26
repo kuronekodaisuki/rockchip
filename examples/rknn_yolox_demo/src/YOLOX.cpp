@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <sys/time.h>
 #include <opencv2/imgproc.hpp>
+#include "im2d.h"
 #include "YOLOX.hpp"
 
 const char* coco_80_labels[] = {
@@ -88,24 +89,8 @@ static double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_use
 
 cv::Mat YOLOX::Infer(cv::Mat& image)
 {
-    int img_width = image.cols;
-    int img_height = image.rows;
     timeval start, stop;
-
-    if (_width == img_width && _height == img_height)
-    {
-        cv::cvtColor(image, _image, cv::COLOR_BGR2RGB);
-    }
-    else
-    {
-        _scale_x = (float)_width / img_width;
-        _scale_y = (float)_height / img_height;
-        printf("scale: %f %f\n", _scale_x, _scale_y);
-        cv::Mat resized;
-        cv::resize(image, resized, cv::Size(_width, _height));
-        cv::cvtColor(resized, _image, cv::COLOR_BGR2RGB);
-    }
-    _inputs[0].buf = _image.data;
+    PreProcess(image);
 
     gettimeofday(&start, NULL);
     // Model inference
@@ -121,6 +106,35 @@ cv::Mat YOLOX::Infer(cv::Mat& image)
     return image;
 }
 
+bool YOLOX::PreProcess(cv::Mat& image)
+{
+    int img_width = image.cols;
+    int img_height = image.rows;
+
+    im_rect src_rect = {0};
+    im_rect dst_rect = {0};
+    rga_buffer_t src = wrapbuffer_virtualaddr((void *)image.data, img_width, img_height, RK_FORMAT_BGR_888);
+    rga_buffer_t dst = wrapbuffer_virtualaddr((void *)_image.data, _width, _height, RK_FORMAT_RGB_888);
+    int ret = imcheck(src, dst, src_rect, dst_rect);
+    if (IM_STATUS_NOERROR == ret)
+    {
+        ret = imresize(src, dst);
+        if (IM_STATUS_SUCCESS == ret)
+        {
+            _inputs[0].buf = _image.data;
+            return true;
+        }
+        else
+        {
+            fprintf(stderr, "resize error %d %s\n", ret, imStrError((IM_STATUS)ret));
+        }
+    }
+    else
+    {
+        fprintf(stderr, "rga check error! %s\n", imStrError((IM_STATUS)ret));
+    }
+    return false;
+}
 
 void YOLOX::PostProcess()
 {
@@ -128,6 +142,7 @@ void YOLOX::PostProcess()
     generateProposals((Result*)_outputs[1].buf, _grids[1], _output_attrs[1].zp, _output_attrs[1].scale);
     generateProposals((Result*)_outputs[2].buf, _grids[2], _output_attrs[2].zp, _output_attrs[2].scale);
   
+    // Sort by probability
     if (2 <= _proposals.size())
     {
         std::sort(_proposals.begin(), _proposals.end());
@@ -146,6 +161,11 @@ void YOLOX::PostProcess()
             _objects[i].box.x, _objects[i].box.y, _objects[i].box.width, _objects[i].box.height,
             _objects[i].prob, coco_80_labels[_objects[i].id]);
     }
+}
+
+inline static int clamp(float val, int min, int max) 
+{
+    return val > min ? (val < max ? val : max) : min; 
 }
 
 inline static int32_t __clip(float val, float min, float max)
@@ -168,32 +188,35 @@ static float deqnt_affine_to_f32(int8_t qnt, int32_t zp, float scale)
 
 void YOLOX::generateProposals(Result* results, const std::vector<GridAndStride> grid, int zp, float scale)
 {
-    for (size_t anchor = 0; anchor < grid.size(); anchor++)
+    for (size_t i = 0; i < grid.size(); i++)
     {
-        float stride = grid[anchor].stride;
-        float x = deqnt_affine_to_f32(results[anchor].x, zp, scale) / _scale_x;
-        float y = deqnt_affine_to_f32(results[anchor].y, zp, scale) / _scale_y;
-        float w = deqnt_affine_to_f32(results[anchor].w, zp, scale) / _scale_x;
-        float h = deqnt_affine_to_f32(results[anchor].h, zp, scale) / _scale_y;
-        float box_objectness = deqnt_affine_to_f32(results[anchor].box_prob, zp, scale);
-
-        OBJECT object = {{x * stride, y * stride, w * stride, h * stride}};
-
-        // Choose class
-        int max_class_id = 0;
-        int8_t max_class_prob = results[anchor].class_score[0]; 
-        for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
+        //float stride = grid[i].stride;
+        float x = deqnt_affine_to_f32(results[i].x, zp, scale) / _scale_x;
+        float y = deqnt_affine_to_f32(results[i].y, zp, scale) / _scale_y;
+        float w = deqnt_affine_to_f32(results[i].w, zp, scale) / _scale_x;
+        float h = deqnt_affine_to_f32(results[i].h, zp, scale) / _scale_y;
+        float box_objectness = deqnt_affine_to_f32(results[i].box_prob, zp, scale);
+        
+        if (_box_conf_threshold < box_objectness)
         {
-            int8_t prob = results[anchor].class_score[class_id];
-            if (max_class_prob < prob)
+            OBJECT object = {{x, y, w, h}, box_objectness};
+
+            // Choose class
+            int max_class_id = 0;
+            int8_t max_class_prob = results[i].class_score[0]; 
+            for (int class_id = 0; class_id < OBJ_CLASS_NUM; class_id++)
             {
-                max_class_id = class_id;
-                max_class_prob = prob;
+                int8_t prob = results[i].class_score[class_id];
+                if (max_class_prob < prob)
+                {
+                    max_class_id = class_id;
+                    max_class_prob = prob;
+                }
             }
+            object.id = max_class_id;
+            object.prob = deqnt_affine_to_f32(max_class_prob, zp, scale) * box_objectness;
+            _proposals.push_back(object);
         }
-        object.id = max_class_id;
-        object.prob = deqnt_affine_to_f32(max_class_prob, zp, scale) * box_objectness;
-        _proposals.push_back(object);
     }
 }
 

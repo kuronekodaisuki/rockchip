@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.4.1)
 
-project(rknn_yolox_demo)
+project(yolox_demo)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -64,13 +64,13 @@ endif()
 
 set(CMAKE_INSTALL_RPATH "lib")
 
-# rknn_yolox_demo
+# yolox_demo
 include_directories(
   ${CMAKE_SOURCE_DIR}/include
   ${OpenCV_DIR}
 )
 
-add_executable(rknn_yolox_demo
+add_executable(yolox_demo
   src/file_utils.cpp
   src/image_utils.cpp
   src/main.cpp
@@ -78,15 +78,15 @@ add_executable(rknn_yolox_demo
   src/yolox.cpp
 )
 
-target_link_libraries(rknn_yolox_demo
+target_link_libraries(yolox_demo
   ${RKNN_RT_LIB}
   ${RGA_LIB}
   ${OpenCV_LIBS}
 )
 
 # install target and libraries
-set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/rknn_yolox_demo_${CMAKE_SYSTEM_NAME})
-install(TARGETS rknn_yolox_demo DESTINATION ./)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install/yolox_demo_${CMAKE_SYSTEM_NAME})
+install(TARGETS yolox_demo DESTINATION ./)
 
 install(PROGRAMS ${RKNN_RT_LIB} DESTINATION lib)
 install(PROGRAMS ${RGA_LIB} DESTINATION lib)
